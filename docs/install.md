@@ -6,7 +6,6 @@
 - root 用户
 - 512MB+ 内存
 - 1GB+ 可用磁盘
-- 已配置 SSH 密钥登录（见 README.md 的 SSH 密钥准备章节）
 - 双模式还需要：已解析到 VPS 的 Cloudflare 域名
 
 ## 直连模式（无需域名）
@@ -22,7 +21,6 @@ bash install.sh \
   --domain ws2.example.com \
   --cf-key "你的CF_Key" \
   --cf-email "你的邮箱" \
-  --ssh-port 48121 \
   --ws-path /gl2025ws
 ```
 
@@ -36,13 +34,19 @@ bash install.sh --domain ws2.example.com --cf-key "你的CF_Key" --cf-email "你
 
 UUID 和 Reality 密钥保持不变，客户端只需新增 CDN-WS 链接。
 
-## 严格 SSH 加固
+## SSH 加固（可选）
 
-默认安全模式不会强制禁用密码登录。确认 SSH 密钥登录成功后再使用：
+默认不修改 SSH 配置。如需启用：
 
 ```bash
-bash install.sh --strict-ssh
+# 加固模式（改端口 + root 仅密钥登录，保留密码登录）
+bash install.sh --ssh-hardening
+
+# 严格模式（彻底禁用密码登录，需确认密钥登录正常后使用）
+bash install.sh --ssh-hardening --strict-ssh
 ```
+
+启用前必须先配置好 SSH 密钥登录，详见 README.md 的 SSH 加固章节。
 
 ## 自定义参数
 

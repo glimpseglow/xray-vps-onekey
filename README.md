@@ -7,11 +7,11 @@ Debian 12 一行命令部署 **Xray Reality 代理**，支持两种模式：
 
 > 适合全新 Debian 12 VPS。涉及 root 权限、SSH、防火墙和代理服务配置，执行前请先阅读脚本内容。
 
-## ⚠️ 安装前必读：SSH 密钥准备
+## SSH 加固（可选，默认不启用）
 
-**本脚本会修改 SSH 端口（默认改为 48121）并限制 root 登录方式。如果安装前没有配置好 SSH 密钥登录，安装完成后你可能彻底失去服务器访问权限，只能靠 VPS 控制台救援。**
+**默认不修改 SSH 配置。** 如需启用 SSH 加固（改端口 + 限制 root 登录方式），请先完成以下准备，再用 `--ssh-hardening` 选项。
 
-### 安装前必须完成
+### 启用 SSH 加固前必须完成
 
 在你的**本地电脑**（不是 VPS）上生成 SSH 密钥并把公钥放到 VPS 的 `/root/.ssh/authorized_keys`：
 
@@ -21,23 +21,21 @@ ssh-keygen -t ed25519 -C "your_email@example.com"
 
 # 2. 把公钥上传到 VPS（用当前 root 密码登录）
 ssh-copy-id root@<你的VPS_IP>
-# 或者手动：
-cat ~/.ssh/id_ed25519.pub | ssh root@<你的VPS_IP> "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
 # 3. 验证密钥登录可用（重要！）
 ssh root@<你的VPS_IP>
 # 能免密登录说明密钥配置成功，才能继续下一步
 ```
 
-### 安装时的 SSH 行为
+### SSH 加固行为
 
-| 模式 | SSH 端口 | 密码登录 | root 登录 |
+| 选项 | SSH 端口 | 密码登录 | root 登录 |
 | --- | --- | --- | --- |
-| 默认 | 改为 48121（或 `--ssh-port` 指定） | **保留** | 仅密钥（`prohibit-password`） |
-| `--strict-ssh` | 改为 48121 | **禁用** | 仅密钥 |
+| `--ssh-hardening` | 改为 48121（或 `--ssh-port` 指定） | **保留** | 仅密钥（`prohibit-password`） |
+| `--ssh-hardening --strict-ssh` | 改为 48121 | **禁用** | 仅密钥 |
 
-- **默认模式**：保留密码登录是为了防止用户密钥没配好就锁死。但 root 只能用密钥登录（`PermitRootLogin prohibit-password`），密码登录仅对非 root 用户有效。
-- **`--strict-ssh`**：彻底禁用密码登录。**只有确认密钥登录完全正常后才能用**。
+- **`--ssh-hardening`**：改端口 + root 仅密钥登录，但保留密码登录（防止锁死）。
+- **`--ssh-hardening --strict-ssh`**：彻底禁用密码登录。**只有确认密钥登录完全正常后才能用**。
 
 ### 安装后的 SSH 连接
 
@@ -45,7 +43,7 @@ ssh root@<你的VPS_IP>
 ssh -p 48121 root@<你的VPS_IP>
 ```
 
-### 如果还是被锁死
+### 如果被锁死
 
 通过 VPS 服务商的网页控制台（VNC/noVNC）登录后执行回滚：
 
@@ -127,7 +125,7 @@ bash install.sh --domain ws2.example.com --cf-key "你的CF_Key" --cf-email "你
 - UFW 防火墙
 - BBR
 - 关闭 IPv6
-- SSH 加固
+- SSH 加固（可选，`--ssh-hardening` 启用）
 - Fail2ban
 - pre-flight 装前检查
 - doctor 装后健康检查
@@ -296,8 +294,8 @@ bash scripts/uninstall.sh
 
 - 仅支持 Debian 12。
 - 建议使用全新 VPS。
-- 修改 SSH 和 UFW 有锁死服务器风险。
-- `--strict-ssh` 前必须确认 SSH 密钥可登录。
+- SSH 加固默认不启用，需 `--ssh-hardening` 选项。启用前必须配置好 SSH 密钥登录，否则可能锁死。
+- `--strict-ssh` 需配合 `--ssh-hardening` 使用，启用前必须确认 SSH 密钥可登录。
 - Cloudflare API Token 比 Global API Key 更安全。
 - 安装日志会尽量脱敏，但不要公开 `/etc/xray-vps-onekey/secrets.env`。
 

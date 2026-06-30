@@ -36,7 +36,8 @@ CDN/WS 证书（仅双模式需要）:
 
 选项:
   --ssh-port PORT              SSH 端口，默认 48121
-  --strict-ssh                 确认密钥登录后禁用密码登录
+  --ssh-hardening              启用 SSH 加固（改端口 + 限制 root 登录），默认不启用
+  --strict-ssh                 配合 --ssh-hardening 使用，禁用密码登录
   --ws-path PATH               WebSocket 路径，默认 /gl2025ws
   --reality-dest DOMAIN        Reality dest/SNI，默认 www.microsoft.com
   --acme-email EMAIL           acme.sh 账户邮箱
@@ -69,6 +70,7 @@ parse_args() {
   XRAY_WS_PORT="$DEFAULT_WS_PORT"
   NGINX_WS_PORT="$DEFAULT_NGINX_WS_PORT"
   STRICT_SSH="false"
+  SSH_HARDENING="false"
   RENEW_CERT="false"
   SKIP_ACME="false"
   SKIP_BACKUP="false"
@@ -83,6 +85,7 @@ parse_args() {
       --cf-zone-id|--cf_zone_id) CF_Zone_ID="$2"; shift 2 ;;
       --cf-account-id|--cf_account_id) CF_Account_ID="$2"; shift 2 ;;
       --ssh-port) SSH_PORT="$2"; shift 2 ;;
+      --ssh-hardening) SSH_HARDENING="true"; shift ;;
       --strict-ssh) STRICT_SSH="true"; shift ;;
       --ws-path) WS_PATH="$2"; shift 2 ;;
       --reality-dest) REALITY_DEST="$2"; REALITY_SERVER_NAMES="[\"$2\"]"; shift 2 ;;
@@ -173,7 +176,11 @@ main() {
 
   install_base_tools
   configure_ufw
-  configure_ssh_hardening
+  if [[ "$SSH_HARDENING" == "true" ]]; then
+    configure_ssh_hardening
+  else
+    info "未启用 SSH 加固（默认）。如需启用请加 --ssh-hardening。"
+  fi
   configure_sysctl_bbr_ipv6
 
   if [[ -n "$DOMAIN" ]]; then
