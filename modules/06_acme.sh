@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# 验证证书文件是否有效（存在、非空、能被 openssl 解析）
+# 用法: validate_cert <fullchain_path> <key_path>
+validate_cert() {
+  local cert="$1" key="$2"
+  [[ -s "$cert" && -s "$key" ]] || return 1
+  openssl x509 -in "$cert" -noout 2>/dev/null || return 1
+  openssl rsa -in "$key" -check -noout 2>/dev/null || openssl ec -in "$key" -check -noout 2>/dev/null || return 1
+  return 0
+}
+
 install_issue_cert() {
   local domain="${DOMAIN:?DOMAIN is required}"
   local cert_dir="/etc/nginx/ssl/${domain}"
@@ -31,24 +41,24 @@ install_issue_cert() {
   mkdir -p "$cert_dir"
   chmod 700 "$cert_dir"
 
-  # 1. 先检查目标路径证书文件是否已存在（非 --renew-cert 时直接跳过）
-  if [[ -f "${cert_dir}/fullchain.cer" && -f "${cert_dir}/private.key" && "${RENEW_CERT:-false}" != "true" ]]; then
-    success "证书已存在: ${cert_dir}/fullchain.cer，跳过签发。"
+  # 1. 先检查目标路径证书文件是否已存在且有效（非 --renew-cert 时直接跳过）
+  if [[ "${RENEW_CERT:-false}" != "true" ]] && validate_cert "${cert_dir}/fullchain.cer" "${cert_dir}/private.key"; then
+    success "证书已存在且有效: ${cert_dir}/fullchain.cer，跳过签发。"
     chmod 600 "${cert_dir}/private.key"
     return 0
   fi
 
-  # 2. 检查 acme.sh 是否已经真正签发过该域名的证书
-  # acme.sh --list 输出格式: Main_Domain  KeyLength  SAN_Domains  Profile  CA  Created  Renew
-  # 只有 Created 列有日期才算真正签发成功
+  # 清理可能存在的无效/空文件
+  rm -f "${cert_dir}/fullchain.cer" "${cert_dir}/private.key" 2>/dev/null || true
+
+  # 2. 检查 acme.sh 是否已经真正签发过该域名的证书（源文件存在且有效）
+  local acme_cert_dir="/root/.acme.sh/${domain}_ecc"
   local already_issued="false"
-  local list_output
-  list_output="$("$acme_sh" --list 2>/dev/null || true)"
-  if echo "$list_output" | awk -v d="$domain" '$1==d && $6!="" && $6!="Created" {found=1} END{exit !found}'; then
-    already_issued="true"
-    local created_date
-    created_date="$(echo "$list_output" | awk -v d="$domain" '$1==d {print $6}')"
-    info "acme.sh 已有 ${domain} 的证书（创建于 ${created_date}），直接安装。"
+  if [[ -s "${acme_cert_dir}/fullchain.cer" && -s "${acme_cert_dir}/${domain}.key" ]]; then
+    if openssl x509 -in "${acme_cert_dir}/fullchain.cer" -noout 2>/dev/null; then
+      already_issued="true"
+      info "acme.sh 已有 ${domain} 的有效证书，直接安装。"
+    fi
   fi
 
   if [[ "$already_issued" == "true" && "${RENEW_CERT:-false}" != "true" ]]; then
@@ -69,22 +79,28 @@ install_issue_cert() {
         --fullchain-file "${cert_dir}/fullchain.cer" 2>&1 || true
     fi
     # issue/renew 失败后尝试 install-cert（有时证书已签发但安装步骤失败）
-    if [[ ! -f "${cert_dir}/fullchain.cer" ]]; then
-      info "尝试安装已有证书..."
-      "$acme_sh" --install-cert -d "$domain" --ecc \
-        --key-file       "${cert_dir}/private.key" \
-        --fullchain-file "${cert_dir}/fullchain.cer" \
-        --reloadcmd      "systemctl reload nginx" 2>&1 || true
+    if ! validate_cert "${cert_dir}/fullchain.cer" "${cert_dir}/private.key" 2>/dev/null; then
+      rm -f "${cert_dir}/fullchain.cer" "${cert_dir}/private.key" 2>/dev/null || true
+      if [[ -s "${acme_cert_dir}/fullchain.cer" ]]; then
+        info "尝试安装已有证书..."
+        "$acme_sh" --install-cert -d "$domain" --ecc \
+          --key-file       "${cert_dir}/private.key" \
+          --fullchain-file "${cert_dir}/fullchain.cer" \
+          --reloadcmd      "systemctl reload nginx" 2>&1 || true
+      fi
     fi
   fi
 
   chmod 600 "${cert_dir}/private.key" 2>/dev/null || true
 
-  # 验证证书文件
-  if [[ -f "${cert_dir}/fullchain.cer" && -f "${cert_dir}/private.key" ]]; then
+  # 最终验证：证书文件存在、非空、且能被 openssl 解析
+  if validate_cert "${cert_dir}/fullchain.cer" "${cert_dir}/private.key"; then
     success "证书已安装: ${domain}。"
   else
-    fail "证书安装失败，证书文件不存在。
+    # 清理无效文件，避免 nginx 加载报错
+    rm -f "${cert_dir}/fullchain.cer" "${cert_dir}/private.key" 2>/dev/null || true
+    fail "证书签发/安装失败。
+
 可能原因:
   1. CA 对该域名限流（retryafter=86400），需等 24 小时后用 --renew-cert 重试
   2. DNS 验证失败，检查 Cloudflare 凭据是否正确
@@ -93,6 +109,11 @@ install_issue_cert() {
 可用命令排查:
   $acme_sh --list
   $acme_sh --issue --dns dns_cf -d $domain --dnssleep 60 --debug 2
+
+如果已有其他工具签发的证书，可手动放到:
+  ${cert_dir}/fullchain.cer
+  ${cert_dir}/private.key
+然后重跑: bash install.sh --domain $domain --skip-acme
 "
   fi
 }
