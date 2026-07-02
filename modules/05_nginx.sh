@@ -11,13 +11,25 @@ install_configure_nginx() {
 
   mkdir -p /etc/nginx/stream-enabled /etc/nginx/sites-available /etc/nginx/sites-enabled
 
-  if ! grep -q 'stream-enabled' /etc/nginx/nginx.conf; then
+  # 确保 nginx.conf 里有 stream {} 块并 include stream-enabled
+  # 不能直接 append 到末尾，stream 指令必须在 stream {} 块内
+  if ! grep -q 'stream-enabled' /etc/nginx/nginx.conf 2>/dev/null; then
     backup_file /etc/nginx/nginx.conf
-    cat >> /etc/nginx/nginx.conf <<'CONF'
+    # 检查是否已有 stream {} 块
+    if grep -qE '^\s*stream\s*\{' /etc/nginx/nginx.conf; then
+      # 已有 stream 块，在里面加 include
+      sed -i '/^\s*stream\s*{/a\    include /etc/nginx/stream-enabled/*.conf;' /etc/nginx/nginx.conf
+    else
+      # 没有 stream 块，在文件末尾追加一个
+      cat >> /etc/nginx/nginx.conf <<'CONF'
 
 # Managed by xray-vps-onekey
-include /etc/nginx/stream-enabled/*.conf;
+stream {
+    include /etc/nginx/stream-enabled/*.conf;
+}
 CONF
+    fi
+    info "已在 nginx.conf 添加 stream {} 块。"
   fi
 
   systemctl enable nginx >/dev/null
