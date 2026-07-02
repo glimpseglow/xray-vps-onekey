@@ -1,11 +1,11 @@
 # xray-vps-onekey
 
-Debian 12 一行命令部署 **Xray Reality 代理**，支持两种模式：
+Debian 12+ / Ubuntu 24.04+ 一行命令部署 **Xray Reality 代理**，支持两种模式：
 
 - **直连模式**（无域名）：Xray Reality 直接监听 `0.0.0.0:443`，无需 nginx、无需域名、无需证书。后续可无缝升级到双模式。
 - **双模式**（有域名）：Reality 直连入口 + VLESS WebSocket CDN 入口，nginx stream SNI 分流、acme.sh 证书。
 
-> 适合全新 Debian 12 VPS。涉及 root 权限、SSH、防火墙和代理服务配置，执行前请先阅读脚本内容。
+> 适合全新 Debian 12+ / Ubuntu 24.04+ VPS。涉及 root 权限、SSH、防火墙和代理服务配置，执行前请先阅读脚本内容。
 
 ## SSH 加固（可选，默认不启用）
 
@@ -292,7 +292,7 @@ bash scripts/uninstall.sh
 
 ## 注意事项
 
-- 仅支持 Debian 12。
+- 支持 Debian 12+、Ubuntu 24.04+。
 - 建议使用全新 VPS。
 - SSH 加固默认不启用，需 `--ssh-hardening` 选项。启用前必须配置好 SSH 密钥登录，否则可能锁死。
 - `--strict-ssh` 需配合 `--ssh-hardening` 使用，启用前必须确认 SSH 密钥可登录。

@@ -13,10 +13,27 @@ preflight_main() {
   fi
   # shellcheck disable=SC1091
   source /etc/os-release
-  if [[ "${ID:-}" != "debian" || "${VERSION_ID:-}" != "12" ]]; then
-    fail "本安装器目前仅支持 Debian 12。检测到: ${PRETTY_NAME:-unknown}。"
+  local os_ok="false"
+  if [[ "${ID:-}" == "debian" ]]; then
+    # Debian 12 及以上
+    if [[ "${VERSION_ID:-}" -ge 12 ]] 2>/dev/null; then
+      os_ok="true"
+    fi
+  elif [[ "${ID:-}" == "ubuntu" ]]; then
+    # Ubuntu 24.04 及以上：把 24.04 转成 2404 整数比较
+    local ver_major ver_minor ver_int
+    ver_major="${VERSION_ID%%.*}"
+    ver_minor="${VERSION_ID#*.}"
+    ver_minor="${ver_minor#0}"  # 去掉前导零，如 04 -> 4
+    ver_int=$(( ver_major * 100 + ver_minor )) 2>/dev/null
+    if [[ "${ver_int:-0}" -ge 2404 ]] 2>/dev/null; then
+      os_ok="true"
+    fi
   fi
-  success "系统检查通过: ${PRETTY_NAME:-Debian 12}"
+  if [[ "$os_ok" != "true" ]]; then
+    fail "本安装器支持 Debian 12+、Ubuntu 24.04+。检测到: ${PRETTY_NAME:-unknown}。"
+  fi
+  success "系统检查通过: ${PRETTY_NAME}"
 
   if ! pidof systemd >/dev/null 2>&1; then
     fail "需要 systemd。"

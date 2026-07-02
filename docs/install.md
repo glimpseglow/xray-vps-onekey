@@ -2,7 +2,7 @@
 
 ## 推荐环境
 
-- Debian 12
+- Debian 12+ / Ubuntu 24.04+
 - root 用户
 - 512MB+ 内存
 - 1GB+ 可用磁盘

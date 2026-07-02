@@ -19,7 +19,7 @@ configure_fail2ban() {
     "$(render_template "${TEMPLATE_DIR}/fail2ban/sshd.local.tpl" "SSH_PORT=${ssh_port}")"
 
   # 确保没有旧的 logpath 配置残留
-  # Debian 12 默认的 defaults-debian.conf 可能启用 sshd jail 但用 auth.log
+  # Debian/Ubuntu 默认的 defaults-debian.conf 可能启用 sshd jail 但用 auth.log
   # 我们用自己的配置覆盖，但如果有 jail.local 里的 [sshd] 段会覆盖 jail.d/
   # 所以也写一份 jail.local 确保 [sshd] 用 systemd backend
   local jail_local="/etc/fail2ban/jail.local"

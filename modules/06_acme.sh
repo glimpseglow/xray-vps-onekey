@@ -31,7 +31,14 @@ install_issue_cert() {
   mkdir -p "$cert_dir"
   chmod 700 "$cert_dir"
 
-  # 检查 acme.sh 是否已经真正签发过该域名的证书
+  # 1. 先检查目标路径证书文件是否已存在（非 --renew-cert 时直接跳过）
+  if [[ -f "${cert_dir}/fullchain.cer" && -f "${cert_dir}/private.key" && "${RENEW_CERT:-false}" != "true" ]]; then
+    success "证书已存在: ${cert_dir}/fullchain.cer，跳过签发。"
+    chmod 600 "${cert_dir}/private.key"
+    return 0
+  fi
+
+  # 2. 检查 acme.sh 是否已经真正签发过该域名的证书
   # acme.sh --list 输出格式: Main_Domain  KeyLength  SAN_Domains  Profile  CA  Created  Renew
   # 只有 Created 列有日期才算真正签发成功
   local already_issued="false"
