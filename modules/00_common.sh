@@ -109,6 +109,23 @@ mask_value() {
   fi
 }
 
+# 从域名提取主域名（去掉 *. 前缀）
+# 例如: *.hurayu.eu.org → hurayu.eu.org
+#       ws6.hurayu.eu.org → ws6.hurayu.eu.org
+base_domain() {
+  local d="$1"
+  if [[ "$d" == \** ]]; then
+    printf '%s' "${d#*.}"
+  else
+    printf '%s' "$d"
+  fi
+}
+
+# 判断是否为泛域名
+is_wildcard_domain() {
+  [[ "$1" == \** ]]
+}
+
 write_file() {
   local path="$1"
   local content="$2"

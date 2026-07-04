@@ -52,13 +52,23 @@ render_nginx_configs() {
 
   info "正在渲染 nginx stream 和 WS 配置..."
 
+  # stream map 和 server_name 永远用精确域名（--domain 的值）
   write_file /etc/nginx/stream-enabled/xray-vps-onekey.conf \
     "$(render_template "${TEMPLATE_DIR}/nginx/nginx.conf.stream.tpl" \
        "DOMAIN=${domain}" "NGINX_WS_PORT=${nginx_ws_port}" "XRAY_REALITY_PORT=${reality_port}")"
 
+  # 证书目录：--wildcard 时用主域名，否则用 --domain 的值
+  local cert_domain
+  if [[ "${WILDCARD:-false}" == "true" ]]; then
+    cert_domain="$(base_domain "$domain")"
+  else
+    cert_domain="${domain}"
+  fi
+
   write_file "/etc/nginx/sites-available/xray-vps-onekey-ws.conf" \
     "$(render_template "${TEMPLATE_DIR}/nginx/ws-site.conf.tpl" \
-       "DOMAIN=${domain}" "NGINX_WS_PORT=${nginx_ws_port}" "XRAY_WS_PORT=${ws_port}" "WS_PATH=${ws_path}")"
+       "DOMAIN=${domain}" "CERT_DOMAIN=${cert_domain}" \
+       "NGINX_WS_PORT=${nginx_ws_port}" "XRAY_WS_PORT=${ws_port}" "WS_PATH=${ws_path}")"
 
   ln -sf /etc/nginx/sites-available/xray-vps-onekey-ws.conf /etc/nginx/sites-enabled/xray-vps-onekey-ws.conf
   nginx -t

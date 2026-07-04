@@ -40,6 +40,7 @@ CDN/WS 证书（仅双模式需要）:
   --strict-ssh                 配合 --ssh-hardening 使用，禁用密码登录
   --ws-path PATH               WebSocket 路径，默认 /gl2025ws
   --reality-dest DOMAIN        Reality dest/SNI，默认 www.microsoft.com
+  --wildcard                   用泛域名申请证书（--domain 的主域名），提高签发成功率
   --acme-email EMAIL           acme.sh 账户邮箱
   --renew-cert                 强制续签证书
   --skip-acme                  跳过 acme.sh/证书签发（高级用户）
@@ -52,6 +53,9 @@ CDN/WS 证书（仅双模式需要）:
 
   # 双模式 + Cloudflare Global Key
   bash install.sh --domain ws2.example.com --cf-key "xxx" --cf-email "you@example.com"
+
+  # 双模式 + 泛域名证书（签发 *.example.com，实际用 ws2.example.com）
+  bash install.sh --domain ws2.example.com --wildcard --cf-key "xxx" --cf-email "you@example.com"
 
   # 双模式 + Cloudflare API Token
   bash install.sh --domain ws2.example.com --cf-token "xxx" --cf-zone-id "xxx" --cf-account-id "xxx"
@@ -74,6 +78,7 @@ parse_args() {
   RENEW_CERT="false"
   SKIP_ACME="false"
   SKIP_BACKUP="false"
+  WILDCARD="false"
   DOMAIN=""
 
   while [[ $# -gt 0 ]]; do
@@ -89,6 +94,7 @@ parse_args() {
       --strict-ssh) STRICT_SSH="true"; shift ;;
       --ws-path) WS_PATH="$2"; shift 2 ;;
       --reality-dest) REALITY_DEST="$2"; REALITY_SERVER_NAMES="[\"$2\"]"; shift 2 ;;
+      --wildcard) WILDCARD="true"; shift ;;
       --acme-email) ACME_EMAIL="$2"; shift 2 ;;
       --renew-cert) RENEW_CERT="true"; shift ;;
       --skip-acme) SKIP_ACME="true"; shift ;;
@@ -110,6 +116,7 @@ persist_config() {
   save_kv "$STATE_FILE" PROJECT_VERSION "$PROJECT_VERSION"
   save_kv "$STATE_FILE" SSH_PORT "$SSH_PORT"
   save_kv "$STATE_FILE" DOMAIN "$DOMAIN"
+  save_kv "$STATE_FILE" WILDCARD "$WILDCARD"
   save_kv "$STATE_FILE" WS_PATH "$WS_PATH"
   save_kv "$STATE_FILE" REALITY_DEST "$REALITY_DEST"
   save_kv "$STATE_FILE" REALITY_SERVER_NAMES "$REALITY_SERVER_NAMES"

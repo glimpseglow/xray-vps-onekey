@@ -3,8 +3,8 @@ server {
     listen 127.0.0.1:{{NGINX_WS_PORT}} ssl http2;
     server_name {{DOMAIN}};
 
-    ssl_certificate /etc/nginx/ssl/{{DOMAIN}}/fullchain.cer;
-    ssl_certificate_key /etc/nginx/ssl/{{DOMAIN}}/private.key;
+    ssl_certificate /etc/nginx/ssl/{{CERT_DOMAIN}}/fullchain.cer;
+    ssl_certificate_key /etc/nginx/ssl/{{CERT_DOMAIN}}/private.key;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location {{WS_PATH}} {
